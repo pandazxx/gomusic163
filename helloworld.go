@@ -1,19 +1,24 @@
 package main
 
 import (
+	"./datatypes"
+
+	// "bytes"
+	"./util"
+	"encoding/json"
 	"fmt"
 	"github.com/docopt/docopt-go"
+	"io/ioutil"
 	"net/http"
-    "io/ioutil"
-    "os"
+	"os"
 )
 
 const (
-	BaseReferer = "http://music.163.com/"
-    APIURL = "http://music.163.com/api/"
-    APILoginURL = APIURL + "login"
-    UserPlayListURL = APIURL + "user/playlist"
-    ArtistAlbumListURL = APIURL + "/artist/albums/2515?limit=10"
+	BaseReferer        = "http://music.163.com/"
+	APIURL             = "http://music.163.com/api/"
+	APILoginURL        = APIURL + "login"
+	UserPlayListURL    = APIURL + "user/playlist"
+	ArtistAlbumListURL = APIURL + "/artist/albums/2515"
 )
 
 func main() {
@@ -35,34 +40,58 @@ Options:
   --moored      Moored (anchored) mine.
   --drifting    Drifting mine.`
 
-    arguments, _ := docopt.Parse(usage, nil, true, "Naval Fate 2.0", false)
-    fmt.Println(arguments)
+	arguments, _ := docopt.Parse(usage, nil, true, "Naval Fate 2.0", false)
+	fmt.Println(arguments)
+	var jsonBlob = []byte(`[
+    {"Name": "Platypus", "Order": "Monotremata", "id": 1234},
+    {"Name": "Quoll",    "Order": "Dasyuromorphia", "id": 1234}
+  ]`)
+	type Animal struct {
+		Name     string
+		Order    string
+		NotExist string
+	}
+	var animals []Animal
+	err := json.Unmarshal(jsonBlob, &animals)
+	if err != nil {
+		fmt.Println("error:", err)
+	}
+	fmt.Printf("%+v\n", animals)
 
 	fmt.Printf("helloworld\n")
-    httpClient := http.Client{}
+	httpClient := http.Client{}
 	fmt.Printf("helloworld\n")
-    req, err := http.NewRequest("GET", ArtistAlbumListURL, nil)
-	fmt.Printf("helloworld\n")
+	// req, err := http.NewRequest("GET", ArtistAlbumListURL, nil)
+	// fmt.Printf("helloworld\n")
 
-    if err != nil {
-    	fmt.Println("Error in making new request\n")
-    	return
-    }
+	// if err != nil {
+	// 	fmt.Println("Error in making new request\n")
+	// 	return
+	// }
 
-    req.Header.Add("Referer", BaseReferer)
-    resp, err := httpClient.Do(req)
-    if err != nil {
-    	fmt.Println("Error in get\n")
-    	return
-    } else {
-        defer resp.Body.Close()
-        contents, err := ioutil.ReadAll(resp.Body)
-        if err != nil {
-            fmt.Printf("%s", err)
-            os.Exit(1)
-        }
-        fmt.Printf("%s\n", string(contents))
-    }
-
+	// req.Header.Add("Referer", BaseReferer)
+	req, err := util.NewHTTPRequest("get", ArtistAlbumListURL, map[string]string{"Referer": BaseReferer}, map[string]string{"limit": "500"})
+	if err != nil {
+		fmt.Printf("Error: %+v", err)
+	}
+	fmt.Printf("value: %+v", req.URL)
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		fmt.Println("Error in get\n")
+		return
+	} else {
+		defer resp.Body.Close()
+		contents, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			fmt.Printf("%s", err)
+			os.Exit(1)
+		}
+		// fmt.Printf("%s\n", string(contents))
+		var albumInfos datatypes.ArtistAlbumListResponse
+		json.Unmarshal(contents, &albumInfos)
+		for _, i := range albumInfos.HotAlbums {
+			fmt.Printf("Album: %s\n", i.Name)
+		}
+	}
 
 }
